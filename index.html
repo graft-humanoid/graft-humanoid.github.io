@@ -1,30 +1,590 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
+  <meta name="description"
+    content="GRAFT: Geometry-Aware Residual Adaptation for Foundation Trackers">
+  <meta name="keywords" content="Humanoid, Behavior Foundation Model, Residual Adaptation, Terrain, Unitree G1">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="GRAFT: Geometry-Aware Residual Adaptation for Foundation Trackers">
-  <title>GRAFT: Geometry-Aware Residual Adaptation for Foundation Trackers</title>
+  <title>
+    GRAFT: Geometry-Aware Residual Adaptation for Foundation Trackers
+  </title>
+
+  <!-- 空 favicon，避免额外请求；外部资源只有 Google Fonts，无统计/追踪脚本 -->
   <link rel="icon" href="data:,">
-  <style>
-    body { margin: 0; font-family: "Google Sans", "Noto Sans", Arial, sans-serif; color: #363636; text-align: center; }
-    main { max-width: 960px; margin: 0 auto; padding: 18vh 24px 48px; }
-    h1 { font-size: 2.6rem; line-height: 1.25; margin: 0 0 28px; }
-    .authors { font-size: 1.2rem; line-height: 1.8; }
-    .note { font-size: 0.95rem; color: #555; margin-top: 8px; }
-    .soon { margin-top: 48px; font-size: 1.1rem; color: #777; }
-  </style>
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <script src="./static/js/index.js"></script>
 </head>
+
 <body>
-  <main>
-    <h1>GRAFT: Geometry-Aware Residual Adaptation for Foundation Trackers</h1>
-    <div class="authors">
-      Liang Li<sup>1</sup>, Guoyao Zhang<sup>1</sup>, Xingyu Chen<sup>1,2</sup>, Sikai Wu<sup>1</sup>,
-      Qianyang Wu<sup>1</sup>, Yuhang Lin<sup>1</sup>, Renjing Xu<sup>2</sup>,
-      Mingliang Zhou<sup>1&dagger;</sup>, Diyun Xiang<sup>1</sup>
+
+<!-- 首屏：真机背景视频（桌面 + 移动两份）、遮罩、右上角按钮、标题 -->
+<section class="hero is-link is-fullheight video" style="overflow: hidden; position:relative;">
+  <div class="hero-video" style="height: 100%; width: 177.77777778vh; min-width: 100%;min-height: 56.25vw;">
+    <video playsinline autoplay muted loop>
+      <source src="./static/videos/hero.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div class="hero-video is-hidden-tablet is-inline-block-mobile"
+    style="height: 154.28571428vw; width: 100%; min-width:64.81481481vh;min-height:100%;">
+    <!-- 移动端：hero.mp4 为 16:9 横屏片，用 cover 铺满竖屏首屏，避免上下露出底色 -->
+    <video playsinline autoplay muted loop style="object-fit: cover;">
+      <source src="./static/videos/hero.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div class="overlay"></div>
+  <!-- 右上角按钮 -->
+  <div style="position: absolute; top: 10px; right: 20px; z-index: 100;">
+    <div class="publication-links" style="display: flex; gap: 10px;">
+      <span class="link-block">
+        <a href="./static/graft.pdf" class="external-link button is-normal is-rounded is-dark" style="font-size: 1.2rem;">
+          <span class="icon">
+            <img src="./static/images/pdf.svg" alt="PDF" />
+          </span>
+          <span>Paper</span>
+        </a>
+      </span>
     </div>
-    <div class="note"><sup>1</sup>Xiaomi Robotics Lab &nbsp;&nbsp; <sup>2</sup>HKUST(Guangzhou) &nbsp;&nbsp; <sup>&dagger;</sup>Corresponding author</div>
-    <p class="soon">Paper and videos coming soon.</p>
-  </main>
+  </div>
+  <!-- 首屏标题（居中） -->
+  <div class="hero-body">
+    <div class="container has-text-centered">
+      <h1 class="title is-1 publication-title is-size-1-mobile" style="font-size: 6rem;">
+        <span style="color: #ff9900;">GRAFT</span>
+      </h1>
+      <h1 class="subtitle is-1 publication-title is-size-4-mobile" style="font-size: 4rem;">
+      <span style="color: #ff9900;">G</span>eometry-Aware
+      <span style="color: #ff9900;">R</span>esidual
+      <span style="color: #ff9900;">A</span>daptation for
+      <span style="color: #ff9900;">F</span>oundation
+      <span style="color: #ff9900;">T</span>rackers
+      </h1>
+    </div>
+  </div>
+</section>
+
+
+<!-- 标题区：目录、标题、作者、单位、按钮、概览视频 -->
+<section class="hero">
+  <div class="toc">
+    <h3>Content</h3>
+    <hr>
+    <ul>
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#method">Method</a></li>
+      <li><a href="#simulation">Simulation</a></li>
+        <li class="toc-subsection"><a href="#sim-frozen">Frozen Trackers on Terrain</a></li>
+        <li class="toc-subsection"><a href="#sim-bases">Transfer Across Frozen Bases</a></li>
+      <li><a href="#real-robot">Real Robot</a></li>
+        <li class="toc-subsection"><a href="#real-low-stairs">Low Stairs</a></li>
+        <li class="toc-subsection"><a href="#real-high-stairs">High Stairs</a></li>
+        <li class="toc-subsection"><a href="#real-platform">Platform</a></li>
+        <li class="toc-subsection"><a href="#real-cart">Push Cart (OOD)</a></li>
+        <li class="toc-subsection"><a href="#real-compare">Frozen SONIC vs. GRAFT</a></li>
+      <li><a href="#teleop">Teleoperation Demo</a></li>
+      <li><a href="#bibtex">BibTeX</a></li>
+    </ul>
+  </div>
+  <div class="hero-body">
+    <div class="container">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title" id="main-title"><span style="color: #ff9900;">GRAFT</span>: Geometry-Aware Residual Adaptation for Foundation Trackers</h1>
+
+          <!-- 作者 -->
+          <div class="is-size-5 publication-authors" style="line-height: 1.6; margin-top: 10px; color: #000;">
+            <span class="author-block"><a href="https://scholar.google.com/citations?user=seNYsXsAAAAJ&amp;hl=en" target="_blank" rel="noopener noreferrer">Liang Li</a><sup>1</sup>,</span>
+            <span class="author-block"><a href="https://learning-github-zgy.github.io/" target="_blank" rel="noopener noreferrer">Guoyao Zhang</a><sup>1</sup>,</span>
+            <span class="author-block"><a href="https://cybercal.github.io/" target="_blank" rel="noopener noreferrer">Xingyu Chen</a><sup>1,2</sup>,</span>
+            <span class="author-block"><a href="https://openreview.net/profile?id=~Sikai_Wu1" target="_blank" rel="noopener noreferrer">Sikai Wu</a><sup>1</sup>,</span>
+            <span class="author-block"><a href="https://openreview.net/profile?id=~Qianyang_Wu1" target="_blank" rel="noopener noreferrer">Qianyang Wu</a><sup>1</sup>,</span>
+            <span class="author-block"><a href="https://openreview.net/profile?id=~Yuhang_Lin3" target="_blank" rel="noopener noreferrer">Yuhang Lin</a><sup>1</sup>,</span>
+          </div>
+          <div class="is-size-5 publication-authors" style="line-height: 1.8;">
+            <span class="author-block"><a href="https://facultyprofiles.hkust-gz.edu.cn/faculty-personal-page/XU-Renjing/renjingxu" target="_blank" rel="noopener noreferrer">Renjing Xu</a><sup>2</sup>,</span>
+            <span class="author-block"><a href="https://ieeexplore.ieee.org/author/37085630293" target="_blank" rel="noopener noreferrer">Mingliang Zhou</a><sup>1†</sup>,</span>
+            <span class="author-block"><a href="https://orcid.org/0009-0002-0627-0194" target="_blank" rel="noopener noreferrer">Diyun Xiang</a><sup>1</sup></span>
+          </div>
+
+          <div class="is-size-6 publication-authors" style="margin-top: 12px; margin-bottom: 12px;">
+            <sup style="color: #ff9900;">†</sup>Corresponding author
+          </div>
+
+          <!-- 单位 -->
+          <div class="institution-names" style="font-family: 'Google Sans', sans-serif; font-size: 1rem; color: #555; line-height: 1.6;">
+            <sup>1</sup> Xiaomi Robotics Lab &nbsp;&nbsp; <sup>2</sup> HKUST(Guangzhou)
+          </div>
+
+          <!-- 论文链接 -->
+          <div class="publication-links" style="margin-top: 15px;">
+            <span class="link-block">
+              <a href="./static/graft.pdf" class="external-link button is-normal is-rounded is-dark" style="margin: 5px;">
+                <span class="icon">
+                  <img src="./static/images/pdf.svg" alt="PDF" />
+                </span>
+                <span>PDF</span>
+              </a>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 概览视频（伴随视频完整版，带配音；不自动播放，poster 为干净真机画面） -->
+    <div class="columns is-centered">
+      <div class="column is-full-width has-text-centered">
+        <video controls preload="metadata" playsinline poster="./static/images/overview_poster.jpg" style="width: 65%; min-width: 320px; border-radius: 10px;" src="./static/videos/graft_overview.mp4"></video>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 摘要（论文原文） -->
+<section class="section" id="abstract">
+  <div class="container">
+    <h2 class="title is-2" id="abstract-title">Abstract</h2>
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <div class="content has-text-justified">
+          <p>
+            Humanoid behavior foundation models (BFMs) provide reusable whole-body motion priors: given a kinematic reference, they generate coordinated joint commands for motion replay, teleoperation, and VLA control. However, trained primarily on flat-ground motion, BFMs lack an explicit mechanism to adapt foot placement, swing clearance, and contact timing to local terrain. Many terrain-aware BFM approaches address this limitation by retraining or fine-tuning the tracker together with perception, incurring substantial data and computation costs while coupling ordinary tracking to the perception pathway. To bridge this gap, we propose GRAFT, a geometry-aware residual adaptation framework for frozen behavior trackers. GRAFT preserves the BFM parameters and motion-reference interface, while a lightweight adapter adds terrain-conditioned corrections only to lower-body execution targets. The adapter is trained with task and foot-geometry rewards, regularized to suppress unnecessary corrections on flat ground, and distilled from privileged terrain observations to onboard depth. Because the frozen BFM already provides whole-body reference tracking and nominal locomotion, GRAFT reduces terrain learning to a focused execution-adaptation problem. We instantiate the framework on four frozen trackers and evaluate stairs, gaps, and platforms in simulation. We further validate it through real-world deployment on a Unitree G1, where the adapted SONIC tracker traverses terrain with onboard depth and unmodified references.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 方法：框架图 + 论文 Fig. 2 图注 + 方法节首段前三句 -->
+<section class="section" id="method">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3" style="text-align: left; padding-bottom: 10px;">Method</h2>
+      </div>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-full-width has-text-centered">
+        <p class="figure-caption non-gallery-caption">
+          GRAFT separates whole-body motion generation from terrain execution adaptation. The frozen BFM provides a reusable motion prior, including reference tracking, nominal locomotion, and whole-body coordination. A lightweight residual policy then learns the terrain-dependent deviation from this nominal execution.
+        </p>
+        <img src="./static/images/framework.png" alt="GRAFT framework: frozen BFM with a gated lower-body residual adapter, trained as a privileged teacher and distilled to an onboard-depth student" style="width: 85%; border-radius: 10px;" />
+        <p class="figure-caption non-gallery-caption">
+          Top: the frozen BFM maps the unmodified reference, from a recorded clip, a teleoperator or a VLA, to a nominal whole-body action, and the adapter reads onboard depth and adds a correction on the lower-body channels only. Bottom: the adapter is first trained against a privileged elevation map and then distilled into a student that reads onboard depth. The node marked <em>gate</em> closes the residual pathway at deployment, after which the executed target is the frozen BFM's own output. The adapter's proprioception, base-action and residual-history inputs are omitted for clarity.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 仿真 -->
+<section class="section" id="simulation">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3" style="text-align: left; padding-bottom: 10px;">Simulation</h2>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section subsection" id="sim-frozen">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4" style="text-align: left; padding-bottom: 0px;">Frozen Trackers on Terrain</h3>
+        <div class="paper-video-row one-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/sim_frozen_sonic_failures.mp4"></video>
+            <div class="gallery-video-caption">Frozen SONIC</div>
+          </div>
+        </div>
+        <p class="figure-caption non-gallery-caption">
+          Flat-ground training never teaches foot placement for terrain, so even terrain-matched references can fail on obstacles.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section subsection" id="sim-bases">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4" style="text-align: left; padding-bottom: 0px;">Transfer Across Frozen Bases</h3>
+        <div class="paper-video-row one-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/sim_graft_four_bases.mp4"></video>
+            <div class="gallery-video-caption">Four frozen bases + GRAFT</div>
+          </div>
+        </div>
+        <p class="figure-caption non-gallery-caption">
+          The same adaptation procedure applies to four frozen bases (SONIC, Humanoid-GPT, HoloMotion and ScaleBFM). Each base receives a separate adapter with the same residual placement and objective family; only interface mappings and base-specific regularizers are adapted. Without GRAFT, the four bases obtain 3/40, 3/40, 8/40, and 2/40 successes, respectively. With GRAFT, these totals increase to 39/40, 34/40, 39/40, and 20/40.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 真机：每对左为第三人称手机 RGB，右为同一次试验的机载深度 -->
+<section class="section" id="real-robot">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3" style="text-align: left; padding-bottom: 10px;">Real Robot</h2>
+        <p class="figure-caption non-gallery-caption">
+          Unitree G1 with onboard depth, using the released SONIC base and unmodified references. Depth panels show the onboard depth stream recorded in the same run; synchronization is display-level. Clips play at real-time speed.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section subsection" id="real-low-stairs">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4" style="text-align: left; padding-bottom: 0px;">Low Stairs (0.10&nbsp;m)</h3>
+        <div class="paper-video-row two-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_01_10cm_low_stairs_up.mp4"></video>
+            <div class="gallery-video-caption">RGB</div>
+          </div>
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_01_10cm_low_stairs_up_depth.mp4"></video>
+            <div class="gallery-video-caption">Depth</div>
+          </div>
+        </div>
+        <div class="paper-video-row two-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_02_10cm_low_stairs_down.mp4"></video>
+            <div class="gallery-video-caption">RGB</div>
+          </div>
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_02_10cm_low_stairs_down_depth.mp4"></video>
+            <div class="gallery-video-caption">Depth</div>
+          </div>
+        </div>
+        <p class="figure-caption non-gallery-caption">
+          With GRAFT on, the tracker climbs the 10&nbsp;cm stairs. It then walks back down the same stairs.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section subsection" id="real-high-stairs">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4" style="text-align: left; padding-bottom: 0px;">High Stairs (0.17&nbsp;m)</h3>
+        <div class="paper-video-row two-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_03_17cm_high_stairs_stop.mp4"></video>
+            <div class="gallery-video-caption">RGB</div>
+          </div>
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_03_17cm_high_stairs_stop_depth.mp4"></video>
+            <div class="gallery-video-caption">Depth</div>
+          </div>
+        </div>
+        <div class="paper-video-row two-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_04_17cm_high_stairs_up.mp4"></video>
+            <div class="gallery-video-caption">RGB</div>
+          </div>
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_04_17cm_high_stairs_up_depth.mp4"></video>
+            <div class="gallery-video-caption">Depth</div>
+          </div>
+        </div>
+        <p class="figure-caption non-gallery-caption">
+          On 17&nbsp;cm stairs, it can pause mid-climb (first row). It can also climb the full staircase without interruption (second row).
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section subsection" id="real-platform">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4" style="text-align: left; padding-bottom: 0px;">Platform (0.30&nbsp;m)</h3>
+        <div class="paper-video-row two-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_05_30cm_platform_up.mp4"></video>
+            <div class="gallery-video-caption">RGB</div>
+          </div>
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_05_30cm_platform_up_depth.mp4"></video>
+            <div class="gallery-video-caption">Depth</div>
+          </div>
+        </div>
+        <p class="figure-caption non-gallery-caption">
+          The same policy steps onto a 30&nbsp;cm platform with the unmodified reference.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section subsection" id="real-cart">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4" style="text-align: left; padding-bottom: 0px;">Push Cart (OOD)</h3>
+        <div class="paper-video-row two-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_06_cart_obstacle_ood_up.mp4"></video>
+            <div class="gallery-video-caption">RGB</div>
+          </div>
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_06_cart_obstacle_ood_up_depth.mp4"></video>
+            <div class="gallery-video-caption">Depth</div>
+          </div>
+        </div>
+        <div class="paper-video-row two-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_07_cart_obstacle_ood_down.mp4"></video>
+            <div class="gallery-video-caption">RGB</div>
+          </div>
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_07_cart_obstacle_ood_down_depth.mp4"></video>
+            <div class="gallery-video-caption">Depth</div>
+          </div>
+        </div>
+        <div class="paper-video-row two-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_08_cart_obstacle_ood_full_traversal.mp4"></video>
+            <div class="gallery-video-caption">RGB</div>
+          </div>
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/real_08_cart_obstacle_ood_full_traversal_depth.mp4"></video>
+            <div class="gallery-video-caption">Depth</div>
+          </div>
+        </div>
+        <p class="figure-caption non-gallery-caption">
+          The push-cart scene is outside the procedural terrain distribution used during training and serves as an additional qualitative deployment test. On an out-of-distribution push cart, GRAFT still finds a usable foothold (first row) and steps back down (second row). The full crossing is a qualitative OOD test, with the residual active throughout (third row).
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section subsection" id="real-compare">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h3 class="title is-4" style="text-align: left; padding-bottom: 0px;">Frozen SONIC vs. GRAFT</h3>
+        <div class="paper-video-row one-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/compare_platform.mp4"></video>
+            <div class="gallery-video-caption">0.30 m platform</div>
+          </div>
+        </div>
+        <div class="paper-video-row one-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/compare_low_stairs.mp4"></video>
+            <div class="gallery-video-caption">0.10 m step</div>
+          </div>
+        </div>
+        <p class="figure-caption non-gallery-caption">
+          Hardware comparison with the same base and references. GRAFT raises the foot and crosses both obstacles; the frozen base alone treads in place. Both sides play at real-time speed and are aligned at the moment the robot reaches the obstacle; the shorter side holds its last frame.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 遥操作演示（伴随视频最后一段，按原片重剪） -->
+<section class="section" id="teleop">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3" style="text-align: left; padding-bottom: 10px;">Teleoperation Demo</h2>
+      </div>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <div class="paper-video-row one-up">
+          <div class="paper-video-item">
+            <video class="paper-video" autoplay muted loop playsinline controls preload="metadata" src="./static/videos/teleop_demo.mp4"></video>
+          </div>
+        </div>
+        <p class="figure-caption non-gallery-caption">
+          Future work: teleoperation and VLA for mobile manipulation on complex terrain. We close with a teleoperation demo on the same reference interface: pick up an object, cross the stairs, and dispose of it. A next step is to evaluate tracking under live teleoperation and VLA commands, particularly when changes in upper-body motion require coordinated adjustments of balance and foot placement. Segments play at 3x, 1x, 10x and 3x speed.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="bibtex">
+  <div class="container">
+    <h2 class="title is-3" style="text-align: left; padding-bottom: 10px;">BibTeX</h2>
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <div class="content">
+          <pre><code>@misc{li2026graft,
+  title   = {GRAFT: Geometry-Aware Residual Adaptation for Foundation Trackers},
+  author  = {Li, Liang and Zhang, Guoyao and Chen, Xingyu and Wu, Sikai and Wu, Qianyang and Lin, Yuhang and Xu, Renjing and Zhou, Mingliang and Xiang, Diyun},
+  howpublished = {\url{https://graft-humanoid.github.io/}},
+  year    = {2026}
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+    <footer class="footer">
+      <div class="container">
+        <div class="content has-text-centered">
+          <p>Page template borrowed from <a href="https://haic-humanoid.github.io/" target="_blank" class="dnerf">HAIC</a></p>
+        </div>
+      </div>
+    </footer>
+
+  <!-- 目录显隐与滚动高亮（模板脚本原样） -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const toc = document.querySelector('.toc');
+      const mainTitle = document.getElementById('main-title');
+      
+      if (toc && mainTitle) {
+        // Function to check if we should show the TOC
+        function checkTocVisibility() {
+          const titleRect = mainTitle.getBoundingClientRect();
+          
+          // Show TOC when the main title is getting close to the top (with 100px buffer)
+          if (titleRect.top <= 100) {
+            toc.classList.add('show');
+          } else {
+            toc.classList.remove('show');
+          }
+        }
+        
+        // Check on scroll
+        window.addEventListener('scroll', checkTocVisibility);
+        
+        // Check on load
+        checkTocVisibility();
+      }
+
+      // Active section highlighting in TOC
+      const tocLinks = document.querySelectorAll('.toc a');
+      const sections = [];
+      
+      // Collect all sections that have corresponding TOC links
+      tocLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('#')) {
+          const sectionId = href.substring(1);
+          const section = document.getElementById(sectionId);
+          if (section) {
+            sections.push({
+              id: sectionId,
+              element: section,
+              link: link
+            });
+          }
+        }
+      });
+
+      function updateActiveTocLink() {
+        // Get current scroll position (with offset from top)
+        const scrollPosition = window.scrollY + 150; // 150px offset to trigger earlier
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        // Find the current section
+        let currentSection = null;
+        
+        // Check if we're at the bottom of the page
+        if (window.scrollY + windowHeight >= documentHeight - 50) {
+          // If at bottom, highlight the last section
+          currentSection = sections[sections.length - 1];
+        } else {
+          // Find the section that's currently in view
+          for (let i = 0; i < sections.length; i++) {
+            const section = sections[i];
+            const rect = section.element.getBoundingClientRect();
+            const sectionTop = rect.top + window.scrollY;
+            const sectionBottom = sectionTop + rect.height;
+            
+            // Check if the top of viewport is within this section (with offset)
+            if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+              currentSection = section;
+              break;
+            }
+          }
+          
+          // If no section found in viewport, use the last section that's above current position
+          if (!currentSection) {
+            for (let i = sections.length - 1; i >= 0; i--) {
+              const section = sections[i];
+              const sectionTop = section.element.getBoundingClientRect().top + window.scrollY;
+              if (sectionTop <= scrollPosition) {
+                currentSection = section;
+                break;
+              }
+            }
+          }
+        }
+
+        // Update active class on TOC links
+        tocLinks.forEach(link => {
+          link.classList.remove('active');
+        });
+
+        if (currentSection) {
+          currentSection.link.classList.add('active');
+          
+          // Also highlight parent link if this is a subsection
+          const parentLi = currentSection.link.closest('li');
+          if (parentLi && parentLi.classList.contains('toc-subsection')) {
+            // Find the previous sibling that is not a subsection (the parent section)
+            let prevSibling = parentLi.previousElementSibling;
+            while (prevSibling) {
+              if (!prevSibling.classList.contains('toc-subsection')) {
+                const parentSectionLink = prevSibling.querySelector('a');
+                if (parentSectionLink) {
+                  parentSectionLink.classList.add('active');
+                }
+                break;
+              }
+              prevSibling = prevSibling.previousElementSibling;
+            }
+          }
+        }
+      }
+
+      // Update on scroll
+      window.addEventListener('scroll', updateActiveTocLink);
+      
+      // Update on load
+      updateActiveTocLink();
+    });
+  </script>
+
+  <!-- 成对视频标签改写：RGB → Exocentric RGB，Depth → Egocentric Depth（模板脚本原样） -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const captions = document.querySelectorAll('.gallery-video-caption');
+      captions.forEach(function(caption) {
+        const text = caption.textContent.trim();
+        if (text === 'RGB') {
+          caption.textContent = 'Exocentric RGB';
+        } else if (text === 'Depth') {
+          caption.textContent = 'Egocentric Depth';
+        }
+      });
+    });
+  </script>
+
+
 </body>
+
 </html>
